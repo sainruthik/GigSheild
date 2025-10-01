@@ -266,7 +266,8 @@
       `).join('');
     }
 
-    function showModal(row) {
+    function showModal(rowJson) {
+      const row = typeof rowJson === 'string' ? JSON.parse(rowJson) : rowJson;
       currentRow = row;
       const modal = document.getElementById('modal');
       const content = document.getElementById('modal-content');
@@ -391,7 +392,8 @@
         if (rows.length === 0) {
           tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center opacity-60">No data available</td></tr>';
         } else {
-          tbody.innerHTML = rows.map(r => `
+          // Reverse to show newest first
+          tbody.innerHTML = rows.reverse().map(r => `
             <tr class="border-t border-[#1d274a] hover:bg-[#0f1530]">
               <td class="p-3"><span class="badge ${r.pred_label}">${r.pred_label.replace('_', ' ')}</span></td>
               <td class="p-3">
@@ -408,7 +410,7 @@
               </td>
               <td class="p-3 text-xs opacity-70">${r.source_file || 'N/A'}</td>
               <td class="p-3">
-                <button onclick='showModal(${JSON.stringify(r).replace(/'/g, "&#39;")})'
+                <button onclick="showModal(this.dataset.row)" data-row='${JSON.stringify(r).replace(/'/g, "&#39;")}'
                   class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs font-medium">
                   View Details
                 </button>
