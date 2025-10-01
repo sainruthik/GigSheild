@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GigShield Risk Monitor</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: #0b1020; color: #e8ecf1; }
+    .card { background: #131a33; border: 1px solid #1d274a; }
+    .badge { border-radius: 9999px; padding: 2px 10px; font-weight: 600; display: inline-block; }
+    .badge.safe { background: #103b29; color: #8ff0c2; border: 1px solid #1e6b4a;}
+    .badge.caution { background: #3e320f; color: #ffd166; border: 1px solid #6a561e;}
+    .badge.high_risk { background: #3b0f12; color: #ff6b6b; border: 1px solid #6b1e23;}
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 50; }
+    .modal.show { display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .progress-bar { height: 8px; background: #0f1530; border-radius: 9999px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(to right, #3b82f6, #a855f7); border-radius: 9999px; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div id="root" class="max-w-7xl mx-auto p-6">
+    <div class="space-y-6">
+      <!-- Header -->
+      <header class="flex items-center justify-between">
+        <h1 class="text-2xl font-bold tracking-tight">GigShield Risk Monitor</h1>
+        <div class="text-sm opacity-80">Auto-refreshing every 2s</div>
+      </header>
+
+      <!-- KPI Cards -->
+      <section class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="card rounded-2xl p-4">
+          <div class="text-xs opacity-70">Rows (last window)</div>
+          <div class="text-3xl font-semibold" id="kpi-total">0</div>
+        </div>
+        <div class="card rounded-2xl p-4">
+          <div class="text-xs opacity-70">Avg Pay</div>
+          <div class="text-3xl font-semibold" id="kpi-pay">$0</div>
+        </div>
+        <div class="card rounded-2xl p-4">
+          <div class="text-xs opacity-70">Avg Account Age</div>
+          <div class="text-3xl font-semibold" id="kpi-age">0 days</div>
+        </div>
+        <div class="card rounded-2xl p-4">
+          <div class="text-xs opacity-70">High-Risk Prob ≥ 0.70</div>
+          <div class="text-3xl font-semibold" id="kpi-highrisk">0</div>
+        </div>
+      </section>
+
+      <!-- Stats & Filters -->
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="card rounded-2xl p-4">
+          <div class="text-sm mb-2 opacity-80">Labels Distribution</div>
+          <div class="flex gap-3 text-xs mt-4">
+            <span class="badge safe" id="label-safe">safe: 0</span>
+            <span class="badge caution" id="label-caution">caution: 0</span>
+            <span class="badge high_risk" id="label-highrisk">high risk: 0</span>
+          </div>
+        </div>
+
+        <div class="card rounded-2xl p-4 lg:col-span-2">
+          <div class="text-sm mb-3 opacity-80">Filters</div>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <select id="filter-label" class="w-full rounded-xl bg-[#0f1530] border border-[#1d274a] p-2">
+              <option value="all">All labels</option>
+              <option value="safe">safe</option>
+              <option value="caution">caution</option>
+              <option value="high_risk">high_risk</option>
+            </select>
+
+            <div>
+              <label class="text-xs opacity-70">Min prob(high_risk)</label>
+              <input type="number" id="filter-minprob" min="0" max="1" step="0.05" value="0"
+                class="w-full rounded-xl bg-[#0f1530] border border-[#1d274a] p-2" />
+            </div>
+
+            <div>
+              <label class="text-xs opacity-70">Min pay</label>
+              <input type="number" id="filter-paymin" min="0" value=""
+                class="w-full rounded-xl bg-[#0f1530] border border-[#1d274a] p-2" />
+            </div>
+
+            <div>
+              <label class="text-xs opacity-70">Max pay</label>
+              <input type="number" id="filter-paymax" min="0" value=""
+                class="w-full rounded-xl bg-[#0f1530] border border-[#1d274a] p-2" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Table -->
+      <section class="card rounded-2xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-sm opacity-80">Recent predictions (latest first)</div>
+          <div class="text-xs opacity-60">showing <span id="row-count">0</span> rows</div>
+        </div>
+        <div class="overflow-auto rounded-xl border border-[#1d274a]">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left bg-[#0f1530]">
+                <th class="p-3 sticky top-0 bg-[#0f1530]">Prediction</th>
+                <th class="p-3 sticky top-0 bg-[#0f1530]">Risk Score</th>
+                <th class="p-3 sticky top-0 bg-[#0f1530]">Transaction Details</th>
+                <th class="p-3 sticky top-0 bg-[#0f1530]">Source</th>
+                <th class="p-3 sticky top-0 bg-[#0f1530]">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="table-body">
+              <tr><td colspan="5" class="p-8 text-center opacity-60">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Detail Modal -->
+  <div id="modal" class="modal">
+    <div class="card rounded-2xl p-6 max-w-3xl w-full max-h-[90vh] overflow-auto" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold">Transaction & Prediction Details</h2>
+        <button onclick="closeModal()" class="text-2xl opacity-70 hover:opacity-100">&times;</button>
+      </div>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentRow = null;
+
+    function getQuickRiskSummary(row) {
+      // Show the most critical risk factor in the table
+      if (!row.pay_verified && row.account_age_days < 30) {
+        return '<div class="text-xs mt-1 opacity-70">⚠️ New account + unverified payment</div>';
+      }
+      if (!row.pay_verified) {
+        return '<div class="text-xs mt-1 opacity-70">⚠️ Payment not verified</div>';
+      }
+      if (row.account_age_days < 30) {
+        return '<div class="text-xs mt-1 opacity-70">🆕 New account</div>';
+      }
+      if (row.response_time_hours > 72) {
+        return '<div class="text-xs mt-1 opacity-70">🐌 Very slow response</div>';
+      }
+      if (row.account_age_days > 365 && row.pay_verified) {
+        return '<div class="text-xs mt-1 opacity-70">✅ Trusted profile</div>';
+      }
+      return '';
+    }
+
+    function getRiskFactors(row) {
+      const factors = [];
+
+      // Payment verification
+      if (!row.pay_verified) {
+        factors.push({
+          icon: '⚠️',
+          label: 'Payment Not Verified',
+          description: 'Unverified payment methods significantly increase fraud risk',
+          severity: 'high'
+        });
+      }
+
+      // Account age
+      if (row.account_age_days < 30) {
+        factors.push({
+          icon: '🆕',
+          label: 'New Account (< 30 days)',
+          description: `Account is only ${row.account_age_days} days old. New accounts have higher risk`,
+          severity: 'high'
+        });
+      } else if (row.account_age_days < 90) {
+        factors.push({
+          icon: '📅',
+          label: 'Recent Account (< 90 days)',
+          description: `Account is ${row.account_age_days} days old. Still building trust`,
+          severity: 'medium'
+        });
+      }
+
+      // Response time
+      if (row.response_time_hours > 48) {
+        factors.push({
+          icon: '🐌',
+          label: 'Slow Response Time',
+          description: `${row.response_time_hours.toFixed(1)}h response time. Delayed responses may indicate issues`,
+          severity: row.response_time_hours > 72 ? 'high' : 'medium'
+        });
+      }
+
+      // High pay amount
+      if (row.pay_amount > 1000) {
+        factors.push({
+          icon: '💰',
+          label: 'High Payment Amount',
+          description: `$${row.pay_amount.toFixed(2)} is unusually high, increasing potential loss if fraudulent`,
+          severity: 'medium'
+        });
+      }
+
+      // Low pay with other issues
+      if (row.pay_amount < 100 && !row.pay_verified) {
+        factors.push({
+          icon: '💸',
+          label: 'Low Pay + Unverified',
+          description: 'Combination of low payment and no verification',
+          severity: 'medium'
+        });
+      }
+
+      // Positive factors
+      if (row.pay_verified) {
+        factors.push({
+          icon: '✅',
+          label: 'Payment Verified',
+          description: 'Verified payment method reduces risk',
+          severity: 'safe'
+        });
+      }
+
+      if (row.account_age_days > 365) {
+        factors.push({
+          icon: '🏆',
+          label: 'Established Account',
+          description: `Account is ${Math.floor(row.account_age_days / 365)} year(s) old. Well-established accounts are more trustworthy`,
+          severity: 'safe'
+        });
+      }
+
+      if (row.response_time_hours < 12) {
+        factors.push({
+          icon: '⚡',
+          label: 'Fast Response',
+          description: `Quick ${row.response_time_hours.toFixed(1)}h response time indicates active engagement`,
+          severity: 'safe'
+        });
+      }
+
+      // If no specific factors found
+      if (factors.length === 0) {
+        factors.push({
+          icon: 'ℹ️',
+          label: 'Standard Profile',
+          description: 'No significant risk factors detected',
+          severity: 'safe'
+        });
+      }
+
+      const severityColors = {
+        high: 'border-l-4 border-red-500 bg-red-900/20',
+        medium: 'border-l-4 border-yellow-500 bg-yellow-900/20',
+        safe: 'border-l-4 border-green-500 bg-green-900/20'
+      };
+
+      return factors.map(f => `
+        <div class="p-3 rounded ${severityColors[f.severity]} mb-2">
+          <div class="flex items-start gap-2">
+            <span class="text-lg">${f.icon}</span>
+            <div class="flex-1">
+              <div class="font-semibold text-sm">${f.label}</div>
+              <div class="text-xs opacity-80 mt-1">${f.description}</div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function showModal(row) {
+      currentRow = row;
+      const modal = document.getElementById('modal');
+      const content = document.getElementById('modal-content');
+
+      let top3Html = '';
+      if (row.top3) {
+        try {
+          const top3 = typeof row.top3 === 'string' ? JSON.parse(row.top3) : row.top3;
+          top3Html = top3.map(item => `
+            <div class="flex items-center gap-2 mb-2">
+              <span class="badge ${item.class}">${item.class.replace('_', ' ')}</span>
+              <div class="flex-1 progress-bar">
+                <div class="progress-fill" style="width: ${(item.prob * 100).toFixed(1)}%"></div>
+              </div>
+              <span class="text-xs font-mono">${(item.prob * 100).toFixed(2)}%</span>
+            </div>
+          `).join('');
+        } catch(e) {
+          top3Html = '<div class="text-xs opacity-60">Unable to parse probabilities</div>';
+        }
+      }
+
+      content.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 class="text-sm font-semibold mb-3 opacity-80 border-b border-[#1d274a] pb-2">TRANSACTION DETAILS</h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="opacity-70">Pay Amount:</span>
+                <span class="font-semibold">$${row.pay_amount?.toFixed(2) || row.pay_amount}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="opacity-70">Payment Verified:</span>
+                <span>${row.pay_verified ? '✅ Yes' : '❌ No'}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="opacity-70">Account Age:</span>
+                <span>${row.account_age_days} days</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="opacity-70">Response Time:</span>
+                <span>${row.response_time_hours} hours</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="opacity-70">Source File:</span>
+                <span class="text-xs opacity-60">${row.source_file || 'N/A'}</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold mb-3 opacity-80 border-b border-[#1d274a] pb-2">PREDICTION RESULTS</h3>
+            <div class="space-y-3">
+              <div>
+                <div class="text-xs opacity-70 mb-1">Predicted Label</div>
+                <span class="badge ${row.pred_label}">${row.pred_label.replace('_', ' ')}</span>
+              </div>
+              <div>
+                <div class="text-xs opacity-70 mb-1">High Risk Probability</div>
+                <div class="text-2xl font-bold">${(row.prob_high_risk || 0).toFixed(4)}</div>
+              </div>
+              ${top3Html ? `
+                <div>
+                  <div class="text-xs opacity-70 mb-2">All Class Probabilities</div>
+                  ${top3Html}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+
+        <!-- Risk Factors Section -->
+        <div class="mt-6 pt-6 border-t border-[#1d274a]">
+          <h3 class="text-sm font-semibold mb-3 opacity-80">RISK FACTORS</h3>
+          ${getRiskFactors(row)}
+        </div>
+      `;
+
+      modal.classList.add('show');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('show');
+    }
+
+    document.getElementById('modal').addEventListener('click', closeModal);
+
+    async function loadData() {
+      const label = document.getElementById('filter-label').value;
+      const minProb = parseFloat(document.getElementById('filter-minprob').value) || 0;
+      const payMin = document.getElementById('filter-paymin').value;
+      const payMax = document.getElementById('filter-paymax').value;
+
+      const params = new URLSearchParams({ limit: 500 });
+      if (label !== 'all') params.set('label', label);
+      if (minProb > 0) params.set('min_prob_high_risk', minProb);
+      if (payMin) params.set('pay_min', payMin);
+      if (payMax) params.set('pay_max', payMax);
+
+      try {
+        const [summary, predictions] = await Promise.all([
+          fetch('/api/summary?limit=500').then(r => r.json()),
+          fetch(`/api/predictions?${params.toString()}`).then(r => r.json())
+        ]);
+
+        // Update KPIs
+        document.getElementById('kpi-total').textContent = summary.total || 0;
+        document.getElementById('kpi-pay').textContent = summary.avg_pay ? '$' + summary.avg_pay : '$0';
+        document.getElementById('kpi-age').textContent = (summary.avg_age || 0) + ' days';
+        document.getElementById('kpi-highrisk').textContent = summary.high_risk_prob_70_plus || 0;
+
+        // Update labels
+        const byLabel = summary.by_label || {};
+        document.getElementById('label-safe').textContent = 'safe: ' + (byLabel.safe || 0);
+        document.getElementById('label-caution').textContent = 'caution: ' + (byLabel.caution || 0);
+        document.getElementById('label-highrisk').textContent = 'high risk: ' + (byLabel.high_risk || 0);
+
+        // Update table
+        const rows = predictions.rows || [];
+        document.getElementById('row-count').textContent = rows.length;
+
+        const tbody = document.getElementById('table-body');
+        if (rows.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center opacity-60">No data available</td></tr>';
+        } else {
+          tbody.innerHTML = rows.map(r => `
+            <tr class="border-t border-[#1d274a] hover:bg-[#0f1530]">
+              <td class="p-3"><span class="badge ${r.pred_label}">${r.pred_label.replace('_', ' ')}</span></td>
+              <td class="p-3">
+                <div class="text-lg font-semibold">${(r.prob_high_risk || 0).toFixed(3)}</div>
+                <div class="text-xs opacity-60">probability</div>
+              </td>
+              <td class="p-3">
+                <div class="space-y-1 text-sm">
+                  <div><span class="opacity-60">Pay:</span> <span class="font-semibold">$${r.pay_amount?.toFixed ? r.pay_amount.toFixed(2) : r.pay_amount}</span> ${r.pay_verified ? '✅' : '❌'}</div>
+                  <div><span class="opacity-60">Account Age:</span> ${r.account_age_days} days</div>
+                  <div><span class="opacity-60">Response Time:</span> ${r.response_time_hours}h</div>
+                  ${getQuickRiskSummary(r)}
+                </div>
+              </td>
+              <td class="p-3 text-xs opacity-70">${r.source_file || 'N/A'}</td>
+              <td class="p-3">
+                <button onclick='showModal(${JSON.stringify(r).replace(/'/g, "&#39;")})'
+                  class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs font-medium">
+                  View Details
+                </button>
+              </td>
+            </tr>
+          `).join('');
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+        document.getElementById('table-body').innerHTML =
+          '<tr><td colspan="5" class="p-8 text-center text-red-500">Error loading data: ' + error.message + '</td></tr>';
+      }
+    }
+
+    // Add event listeners to filters
+    document.getElementById('filter-label').addEventListener('change', loadData);
+    document.getElementById('filter-minprob').addEventListener('change', loadData);
+    document.getElementById('filter-paymin').addEventListener('change', loadData);
+    document.getElementById('filter-paymax').addEventListener('change', loadData);
+
+    // Initial load
+    loadData();
+
+    // Auto-refresh every 2 seconds
+    setInterval(loadData, 2000);
+  </script>
+</body>
+</html>

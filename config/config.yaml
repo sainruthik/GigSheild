@@ -1,0 +1,55 @@
+seed: 42
+
+paths:
+  raw_csv: data/raw/gigshield_jobs_synthetic.csv
+  preprocess_dir: artifacts/preprocessing
+  models_dir: artifacts/models
+
+generate:
+  rows: 5000
+
+preprocess:
+  test_size: 0.2
+
+model:
+  use_xgboost: true
+  logreg:
+    max_iter: 800
+  xgb:
+    n_estimators: 300
+    learning_rate: 0.08
+    max_depth: 5
+    subsample: 0.9
+    colsample_bytree: 0.9
+    eval_metric: mlogloss
+
+search:
+  # scoring is any sklearn metric; "f1_macro" is good for class imbalance
+  scoring: f1_macro
+  cv: 3         # 3-fold CV
+  n_jobs: -1    # use all cores
+
+  logistic:
+    C: [0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
+    penalty: ["l2"]
+    solver: ["lbfgs", "saga"]   # saga supports l1/l2; lbfgs is stable for multinomial
+  xgb:
+    n_estimators: [100, 200, 400]
+    learning_rate: [0.03, 0.08, 0.15]
+    max_depth: [3, 5, 7]
+    subsample: [0.7, 0.85, 1.0]
+    colsample_bytree: [0.7, 0.85, 1.0]
+mlflow:
+  enabled: true
+  tracking_uri: "file:artifacts/mlruns"   # local tracking under artifacts/
+  experiment_name: "gigshield-risk"
+  autolog: false                          # set true to also enable MLflow autolog
+ingestion:
+  incoming_dir: data/incoming
+  processed_dir: data/processed
+  error_dir: data/error
+  predictions_dir: data/predictions
+  poll_interval_seconds: 2
+  model_name: logreg         # or "xgb" if you trained/saved it
+  exts: ["json", "csv"]      # file types to watch
+  mlflow_per_file: true      # log a tiny run per processed file

@@ -1,0 +1,63 @@
+{
+  "best_params": {
+    "C": 5.0,
+    "penalty": "l2",
+    "solver": "lbfgs"
+  },
+  "best_cv_score": 0.9664793978056608,
+  "classification_report": {
+    "caution": {
+      "precision": 0.9408284023668639,
+      "recall": 0.9436201780415431,
+      "f1-score": 0.9422222222222222,
+      "support": 337.0
+    },
+    "high_risk": {
+      "precision": 0.9664570230607966,
+      "recall": 0.9644351464435147,
+      "f1-score": 0.9654450261780104,
+      "support": 478.0
+    },
+    "safe": {
+      "precision": 0.9837837837837838,
+      "recall": 0.9837837837837838,
+      "f1-score": 0.9837837837837838,
+      "support": 185.0
+    },
+    "accuracy": 0.961,
+    "macro avg": {
+      "precision": 0.9636897364038148,
+      "recall": 0.9639463694229472,
+      "f1-score": 0.9638170107280054,
+      "support": 1000.0
+    },
+    "weighted avg": {
+      "precision": 0.961025628620694,
+      "recall": 0.961,
+      "f1-score": 0.9610116114019779,
+      "support": 1000.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      318,
+      16,
+      3
+    ],
+    [
+      17,
+      461,
+      0
+    ],
+    [
+      3,
+      0,
+      182
+    ]
+  ],
+  "classes": [
+    "caution",
+    "high_risk",
+    "safe"
+  ]
+}

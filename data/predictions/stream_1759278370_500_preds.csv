@@ -1,0 +1,2 @@
+﻿pay_amount,account_age_days,response_time_hours,pay_verified,pred_label,prob_high_risk,top3
+715.64,677,15.73,0,high_risk,0.559409,"[{""class"": ""high_risk"", ""prob"": 0.559409}, {""class"": ""caution"", ""prob"": 0.440591}, {""class"": ""safe"", ""prob"": 0.0}]"

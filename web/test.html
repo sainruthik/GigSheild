@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Page</title>
+</head>
+<body style="background: #0b1020; color: white; padding: 20px;">
+    <h1>GigShield Test Page</h1>
+    <p>If you can see this, the server is working!</p>
+    <div id="data"></div>
+
+    <script>
+        fetch('/api/summary')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('data').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            })
+            .catch(e => {
+                document.getElementById('data').innerHTML = '<p style="color:red">Error: ' + e + '</p>';
+            });
+    </script>
+</body>
+</html>

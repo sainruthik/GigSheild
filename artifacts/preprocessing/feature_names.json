@@ -1,0 +1,16 @@
+[
+  "pay_amount",
+  "pay_verified",
+  "response_time_hours",
+  "complaints_count",
+  "complaints_payment_related",
+  "info_complete",
+  "profile_complete",
+  "past_jobs",
+  "past_paid_jobs",
+  "account_age_days",
+  "paid_ratio",
+  "log_pay_amount",
+  "log_response_time_hours",
+  "log_account_age_days"
+]
